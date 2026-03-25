@@ -119,46 +119,8 @@ if user_input:
         st.session_state.messages.append(("assistant", response))
         st.rerun()
 
-# ---------------- QUESTIONS ----------------
-if st.session_state.stage == "questions":
-    st.subheader("Answer the Questions Below")
 
-    if "answers" not in st.session_state:
-        st.session_state.answers = {}
-
-    q_lines = st.session_state.get("questions", "").split("\n")
-
-    qn = 1
-    for line in q_lines:
-        if line.strip().startswith(("1", "2", "3", "4", "5")):
-            st.write(f"**Q{qn}: {line}**")
-            ans = st.text_area(f"Your Answer {qn}", key=f"a{qn}")
-            st.session_state.answers[f"Q{qn}"] = ans
-            qn += 1
-
-    if st.button("✅ Submit Answers"):
-        st.session_state.final_answers = st.session_state.answers.copy()
-        st.session_state.stage = "review"
-        st.rerun()
-
-# ---------------- REVIEW ----------------
-if st.session_state.stage == "review":
-    st.subheader("📋 Your Submitted Answers")
-
-    for q, ans in st.session_state.final_answers.items():
-        st.write(f"**{q}**")
-        st.write(ans if ans else "_No answer provided_")
-
-    if st.button("🚀 Finish Interview"):
-        name = st.session_state.candidate.get("name", "Candidate")
-        final_msg = get_llm_response(get_end_prompt(name))
-        st.session_state.messages.append(("assistant", final_msg))
-        st.session_state.stage = "end"
-        st.rerun()
-
-# ---------------- CHAT DISPLAY (FINAL FIX) ----------------
-st.divider()
-
+# ---------------- CHAT DISPLAY ----------------
 for role, msg in st.session_state.messages:
     if role == "assistant":
         with st.chat_message("assistant"):
@@ -169,3 +131,45 @@ for role, msg in st.session_state.messages:
         <b>You:</b> {msg}
         </div>
         """, unsafe_allow_html=True)
+
+
+# ---------------- QUESTIONS ----------------
+if st.session_state.stage == "questions":
+    st.markdown("### 🧠 Answer the Questions Below")
+
+    if "answers" not in st.session_state:
+        st.session_state.answers = {}
+
+    q_lines = st.session_state.get("questions", "").split("\n")
+
+    qn = 1
+    for line in q_lines:
+        if line.strip().startswith(("1", "2", "3", "4", "5")):
+            st.markdown(f"**Q{qn}: {line}**")
+
+            ans = st.text_area(f"Your Answer {qn}", key=f"a{qn}")
+            st.session_state.answers[f"Q{qn}"] = ans
+
+            qn += 1
+
+    if st.button("✅ Submit Answers"):
+        st.session_state.final_answers = st.session_state.answers.copy()
+        st.session_state.stage = "review"
+        st.rerun()
+
+
+# ---------------- REVIEW ----------------
+if st.session_state.stage == "review":
+    st.markdown("### 📋 Your Submitted Answers")
+
+    for q, ans in st.session_state.final_answers.items():
+        st.markdown(f"**{q}**")
+        st.write(ans if ans else "_No answer provided_")
+
+    if st.button("🚀 Finish Interview"):
+        name = st.session_state.candidate.get("name", "Candidate")
+        final_msg = get_llm_response(get_end_prompt(name))
+
+        st.session_state.messages.append(("assistant", final_msg))
+        st.session_state.stage = "end"
+        st.rerun()
