@@ -55,7 +55,7 @@ user_input = st.chat_input("Type your response here...")
 
 if user_input:
 
-    # Decide where to store chat
+    # store user message
     if st.session_state.stage in ["questions", "review"]:
         st.session_state.post_chat.append(("user", user_input))
     else:
@@ -117,36 +117,38 @@ if user_input:
         questions = get_llm_response(get_question_prompt(user_input))
         st.session_state.questions = questions
 
-        st.session_state.messages.append(("assistant", "I have generated technical questions. Please answer them below 👇"))
+        st.session_state.messages.append(("assistant", "🧠 I have generated technical questions. Please answer them below 👇"))
         st.session_state.stage = "questions"
         st.rerun()
 
-   
-# FALLBACK
-else:
-    all_chat = (st.session_state.messages + st.session_state.post_chat)[-10:]
-
-    chat_history = "\n".join([f"{r}: {m}" for r, m in all_chat])
-
-    candidate_info = str(st.session_state.candidate)
-    answers = str(st.session_state.get("final_answers", {}))[:1000]
-
-    response = get_llm_response(
-        get_fallback_prompt(
-            user_input,
-            st.session_state.stage,
-            chat_history,
-            candidate_info,
-            answers
-        )
-    )
-
-    if st.session_state.stage in ["questions", "review"]:
-        st.session_state.post_chat.append(("assistant", response))
+    # ---------------- FALLBACK (FIXED) ----------------
     else:
-        st.session_state.messages.append(("assistant", response))
+        all_chat = (st.session_state.messages + st.session_state.post_chat)[-10:]
 
-    st.rerun()
+        chat_history = "\n".join([f"{r}: {m}" for r, m in all_chat])
+
+        candidate_info = str(st.session_state.candidate)
+        answers = str(st.session_state.get("final_answers", {}))[:1000]
+
+        try:
+            response = get_llm_response(
+                get_fallback_prompt(
+                    user_input,
+                    st.session_state.stage,
+                    chat_history,
+                    candidate_info,
+                    answers
+                )
+            )
+        except:
+            response = "Sorry, something went wrong. Please try again."
+
+        if st.session_state.stage in ["questions", "review"]:
+            st.session_state.post_chat.append(("assistant", response))
+        else:
+            st.session_state.messages.append(("assistant", response))
+
+        st.rerun()
 
 # ---------------- MAIN CHAT ----------------
 for role, msg in st.session_state.messages:
@@ -162,7 +164,7 @@ for role, msg in st.session_state.messages:
 
 # ---------------- QUESTIONS ----------------
 if st.session_state.stage == "questions":
-    st.subheader("Answer the Questions Below")
+    st.subheader("🧠 Answer the Questions Below")
 
     if "answers" not in st.session_state:
         st.session_state.answers = {}
