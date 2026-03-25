@@ -121,24 +121,25 @@ if user_input:
         st.session_state.stage = "questions"
         st.rerun()
 
-    # FALLBACK
+   
+# FALLBACK
 else:
     all_chat = (st.session_state.messages + st.session_state.post_chat)[-10:]
 
-chat_history = "\n".join([f"{r}: {m}" for r, m in all_chat])
+    chat_history = "\n".join([f"{r}: {m}" for r, m in all_chat])
 
-candidate_info = str(st.session_state.candidate)
-answers = str(st.session_state.get("final_answers", {}))[:1000]
+    candidate_info = str(st.session_state.candidate)
+    answers = str(st.session_state.get("final_answers", {}))[:1000]
 
-response = get_llm_response(
-    get_fallback_prompt(
-        user_input,
-        st.session_state.stage,
-        chat_history,
-        candidate_info,
-        answers
+    response = get_llm_response(
+        get_fallback_prompt(
+            user_input,
+            st.session_state.stage,
+            chat_history,
+            candidate_info,
+            answers
+        )
     )
-)
 
     if st.session_state.stage in ["questions", "review"]:
         st.session_state.post_chat.append(("assistant", response))
