@@ -1,174 +1,129 @@
 import streamlit as st
-from prompts import (
-    get_info_prompt,
-    get_tech_stack_prompt,
-    get_question_prompt,
-    get_fallback_prompt
-)
+from prompts import *
 from utils import get_llm_response
 
+# ---------------- CONFIG ----------------
+st.set_page_config(page_title="TalentScout AI", page_icon="🤖", layout="wide")
 
-# =========================
-# SESSION STATE INIT
-# =========================
+st.title("🤖 TalentScout AI Hiring Assistant")
+st.info("🔒 Your data is safe and not stored permanently.")
+
+# ---------------- SESSION ----------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 if "stage" not in st.session_state:
-    st.session_state.stage = "info"
+    st.session_state.stage = "name"
 
-if "candidate_info" not in st.session_state:
-    st.session_state.candidate_info = {
-        "name": "",
-        "email": "",
-        "phone": "",
-        "experience": "",
-        "role": "",
-        "location": ""
-    }
+if "candidate" not in st.session_state:
+    st.session_state.candidate = {}
 
-if "tech_stack" not in st.session_state:
-    st.session_state.tech_stack = ""
-
-if "questions" not in st.session_state:
-    st.session_state.questions = []
-
-if "current_q_index" not in st.session_state:
-    st.session_state.current_q_index = 0
-
-if "answers" not in st.session_state:
-    st.session_state.answers = []
-
-
-# =========================
-# UI
-# =========================
-st.title("TalentScout Hiring Assistant 🤖")
-
-# Display chat history
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-
-# =========================
-# HELPER
-# =========================
-def ask_llm(prompt):
-    return get_llm_response(prompt)
-
-
-def extract_questions(text):
-    lines = text.split("\n")
-    questions = []
-    for line in lines:
-        line = line.strip()
-        if line and line[0].isdigit():
-            questions.append(line)
-    return questions
-
-
-# =========================
-# INITIAL BOT MESSAGE
-# =========================
+# ---------------- GREETING ----------------
 if len(st.session_state.messages) == 0:
-    first_q = ask_llm(get_info_prompt())
-    st.session_state.messages.append({"role": "assistant", "content": first_q})
-    st.rerun()
+    st.session_state.messages.append(("assistant", """
+Hello! Welcome to TalentScout 🤖
 
+I will:
+- Collect your details
+- Ask technical questions
 
-# =========================
-# USER INPUT
-# =========================
-user_input = st.chat_input("Type your response...")
+What is your full name?
+"""))
+
+# ---------------- DISPLAY CHAT ----------------
+for role, msg in st.session_state.messages:
+    with st.chat_message(role):
+        st.write(msg)
+
+# ---------------- INPUT ----------------
+user_input = st.chat_input("Type here...")
 
 if user_input:
-    st.session_state.messages.append({"role": "user", "content": user_input})
 
-    stage = st.session_state.stage
+    st.session_state.messages.append(("user", user_input))
 
-    # =========================
-    # STAGE 1: INFO COLLECTION
-    # =========================
-    if stage == "info":
-        info = st.session_state.candidate_info
+    # ---------------- FLOW ----------------
+    if st.session_state.stage == "name":
+        st.session_state.candidate["name"] = user_input
+        st.session_state.stage = "email"
+        st.session_state.messages.append(("assistant", "Enter your email"))
 
-        if info["name"] == "":
-            info["name"] = user_input
-        elif info["email"] == "":
-            info["email"] = user_input
-        elif info["phone"] == "":
-            info["phone"] = user_input
-        elif info["experience"] == "":
-            info["experience"] = user_input
-        elif info["role"] == "":
-            info["role"] = user_input
-        elif info["location"] == "":
-            info["location"] = user_input
-            st.session_state.stage = "tech_stack"
+    elif st.session_state.stage == "email":
+        st.session_state.candidate["email"] = user_input
+        st.session_state.stage = "role"
+        st.session_state.messages.append(("assistant", "What role are you applying for?"))
 
-        bot_reply = ask_llm(get_info_prompt())
+    elif st.session_state.stage == "role":
+        st.session_state.candidate["role"] = user_input
+        st.session_state.stage = "tech"
+        st.session_state.messages.append(("assistant", "Enter your tech stack (comma separated)"))
 
-    # =========================
-    # STAGE 2: TECH STACK
-    # =========================
-    elif stage == "tech_stack":
-        if st.session_state.tech_stack == "":
-            st.session_state.tech_stack = user_input
+    elif st.session_state.stage == "tech":
+        tech = ", ".join([t.strip() for t in user_input.split(",")])
+        st.session_state.candidate["tech_stack"] = tech
 
-            # Generate questions
-            questions_text = ask_llm(get_question_prompt(user_input))
-            questions = extract_questions(questions_text)
+        try:
+            questions = get_llm_response(get_question_prompt(tech))
+        except:
+            questions = """General:
+1. Tell me about your project
+2. Challenges faced?
+3. How do you solve problems?"""
 
-            st.session_state.questions = questions
-            st.session_state.stage = "questions"
-            st.session_state.current_q_index = 0
+        st.session_state.questions = questions
+        st.session_state.stage = "questions"
 
-            if questions:
-                bot_reply = f"Let's start the interview 🚀\n\n{questions[0]}"
-            else:
-                bot_reply = "I couldn't generate questions. Please re-enter your tech stack."
-                st.session_state.stage = "tech_stack"
-        else:
-            bot_reply = ask_llm(get_tech_stack_prompt())
+        st.session_state.messages.append(("assistant", "Answer these questions below 👇"))
 
-    # =========================
-    # STAGE 3: QUESTIONS (ONE BY ONE)
-    # =========================
-    elif stage == "questions":
-        st.session_state.answers.append(user_input)
-        st.session_state.current_q_index += 1
-
-        if st.session_state.current_q_index < len(st.session_state.questions):
-            next_q = st.session_state.questions[st.session_state.current_q_index]
-            bot_reply = next_q
-        else:
-            st.session_state.stage = "review"
-            bot_reply = "Your responses have been recorded and will be reviewed by our team. You will be contacted soon."
-
-    # =========================
-    # STAGE 4: REVIEW
-    # =========================
-    elif stage == "review":
-        bot_reply = "Your responses have been recorded and will be reviewed by our team. You will be contacted soon."
-
-    # =========================
-    # FALLBACK
-    # =========================
+    # ---------------- FALLBACK ----------------
     else:
-        bot_reply = ask_llm(
-            get_fallback_prompt(
-                user_input,
-                st.session_state.stage,
-                st.session_state.messages,
-                st.session_state.candidate_info,
-                st.session_state.answers
-            )
-        )
+        try:
+            response = get_llm_response(get_fallback_prompt(user_input))
+        except:
+            response = "Please continue."
 
-    # Save bot response
-    st.session_state.messages.append({"role": "assistant", "content": bot_reply})
+        st.session_state.messages.append(("assistant", response))
 
-    # Display bot response
-    with st.chat_message("assistant"):
-        st.markdown(bot_reply)
+    st.rerun()
+
+# ---------------- QUESTIONS ----------------
+if st.session_state.stage == "questions":
+
+    st.subheader("Answer Questions")
+
+    if "answers" not in st.session_state:
+        st.session_state.answers = {}
+
+    lines = st.session_state.questions.split("\n")
+
+    i = 1
+    for line in lines:
+        if line.strip().startswith(("1", "2", "3")):
+            st.write(line)
+            st.session_state.answers[i] = st.text_area("Your Answer", key=i)
+            i += 1
+
+    if st.button("Submit"):
+        st.session_state.final_answers = st.session_state.answers
+        st.session_state.stage = "review"
+        st.rerun()
+
+# ---------------- REVIEW ----------------
+if st.session_state.stage == "review":
+
+    st.subheader("Your Answers")
+
+    for k, v in st.session_state.final_answers.items():
+        st.write(f"Q{k}: {v}")
+
+    if st.button("Finish"):
+        name = st.session_state.candidate.get("name", "Candidate")
+
+        try:
+            msg = get_llm_response(get_end_prompt(name))
+        except:
+            msg = f"Thank you {name}, we will contact you soon."
+
+        st.session_state.messages.append(("assistant", msg))
+        st.session_state.stage = "end"
+        st.rerun()
