@@ -122,25 +122,27 @@ if user_input:
         st.rerun()
 
     # FALLBACK
-    else:
-        chat_history = "\n".join([f"{r}: {m}" for r, m in st.session_state.messages])
+else:
+    all_chat = st.session_state.messages + st.session_state.post_chat
 
-        response = get_llm_response(
-            get_fallback_prompt(
-    user_input,
-    st.session_state.stage,
-    chat_history,
-    st.session_state.candidate,
-    st.session_state.get("final_answers", {})
-)
+    chat_history = "\n".join([f"{r}: {m}" for r, m in all_chat])
+
+    response = get_llm_response(
+        get_fallback_prompt(
+            user_input,
+            st.session_state.stage,
+            chat_history,
+            st.session_state.candidate,
+            st.session_state.get("final_answers", {})
         )
+    )
 
-        if st.session_state.stage in ["questions", "review"]:
-            st.session_state.post_chat.append(("assistant", response))
-        else:
-            st.session_state.messages.append(("assistant", response))
+    if st.session_state.stage in ["questions", "review"]:
+        st.session_state.post_chat.append(("assistant", response))
+    else:
+        st.session_state.messages.append(("assistant", response))
 
-        st.rerun()
+    st.rerun()
 
 # ---------------- MAIN CHAT ----------------
 for role, msg in st.session_state.messages:
