@@ -126,7 +126,13 @@ if user_input:
         chat_history = "\n".join([f"{r}: {m}" for r, m in st.session_state.messages])
 
         response = get_llm_response(
-            get_fallback_prompt(user_input, st.session_state.stage, chat_history)
+            get_fallback_prompt(
+    user_input,
+    st.session_state.stage,
+    chat_history,
+    st.session_state.candidate,
+    st.session_state.get("final_answers", {})
+)
         )
 
         if st.session_state.stage in ["questions", "review"]:
