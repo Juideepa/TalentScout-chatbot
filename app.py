@@ -55,7 +55,7 @@ user_input = st.chat_input("Type your response here...")
 
 if user_input:
 
-    # Decide where to store chat
+    # Store user message
     if st.session_state.stage in ["questions", "review"]:
         st.session_state.post_chat.append(("user", user_input))
     else:
@@ -64,7 +64,7 @@ if user_input:
     # EXIT
     if user_input.lower() in ["exit", "quit", "bye"]:
         name = st.session_state.candidate.get("name", "Candidate")
-        final_msg = get_llm_response(get_end_prompt(name))
+        final_msg = f"Thank you {name}! Your responses have been recorded. We will contact you soon."
 
         if st.session_state.stage in ["questions", "review"]:
             st.session_state.post_chat.append(("assistant", final_msg))
@@ -74,7 +74,8 @@ if user_input:
         st.session_state.stage = "end"
         st.rerun()
 
-    # FLOW
+    # ---------------- FLOW ----------------
+
     elif st.session_state.stage == "collect_name":
         st.session_state.candidate["name"] = user_input
         st.session_state.messages.append(("assistant", "📧 Please provide your email address."))
@@ -111,23 +112,51 @@ if user_input:
         st.session_state.stage = "tech_stack"
         st.rerun()
 
-    elif st.session_state.stage == "tech_stack":
-        st.session_state.candidate["tech_stack"] = user_input
+    # 🔥 FIXED TECH STACK (MAIN BUG FIX)
+    elif st.session_state.stage == "tech_stack" and "questions" not in st.session_state:
 
-        questions = get_llm_response(get_question_prompt(user_input))
+        # Clean tech stack
+        tech_list = [t.strip() for t in user_input.split(",")]
+        clean_tech = ", ".join(tech_list)[:100]
+
+        st.session_state.candidate["tech_stack"] = clean_tech
+
+        import time
+        time.sleep(1)  # prevent rapid API calls
+
+        try:
+            questions = get_llm_response(get_question_prompt(clean_tech))
+        except Exception:
+            # Smart fallback (still tech-based)
+            questions = ""
+            for tech in tech_list:
+                questions += f"{tech}:\n"
+                questions += f"1. What are key concepts of {tech}?\n"
+                questions += f"2. How have you used {tech} in a project?\n"
+                questions += f"3. What challenges did you face while using {tech}?\n\n"
+
         st.session_state.questions = questions
 
-        st.session_state.messages.append(("assistant", "🧠 I have generated technical questions. Please answer them below 👇"))
+        st.session_state.messages.append((
+            "assistant",
+            "I have generated technical questions. Please answer them below 👇"
+        ))
+
         st.session_state.stage = "questions"
         st.rerun()
 
-    # FALLBACK
+    # ---------------- FALLBACK ----------------
     else:
-        chat_history = "\n".join([f"{r}: {m}" for r, m in st.session_state.messages])
-
-        response = get_llm_response(
-            get_fallback_prompt(user_input, st.session_state.stage, chat_history)
+        chat_history = "\n".join(
+            [f"{r}: {m}" for r, m in st.session_state.messages[-10:]]
         )
+
+        try:
+            response = get_llm_response(
+                get_fallback_prompt(user_input, st.session_state.stage, chat_history)
+            )
+        except:
+            response = "I'm here to help. Please continue."
 
         if st.session_state.stage in ["questions", "review"]:
             st.session_state.post_chat.append(("assistant", response))
@@ -150,7 +179,7 @@ for role, msg in st.session_state.messages:
 
 # ---------------- QUESTIONS ----------------
 if st.session_state.stage == "questions":
-    st.subheader("🧠 Answer the Questions Below")
+    st.subheader("Answer the Questions Below")
 
     if "answers" not in st.session_state:
         st.session_state.answers = {}
@@ -197,7 +226,7 @@ if st.session_state.stage in ["questions", "review"]:
 if st.session_state.stage == "review":
     if st.button("🚀 Finish Interview"):
         name = st.session_state.candidate.get("name", "Candidate")
-        final_msg = get_llm_response(get_end_prompt(name))
+        final_msg = f"Thank you {name}! Your responses have been recorded. We will contact you soon."
 
         st.session_state.post_chat.append(("assistant", final_msg))
         st.session_state.stage = "end"
