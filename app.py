@@ -8,9 +8,24 @@ st.set_page_config(page_title="TalentScout AI Assistant", page_icon="🤖", layo
 # ---------------- STYLING ----------------
 st.markdown("""
 <style>
-    .main { background-color: #f8f9fc; }
-    h1 { color: #6C63FF; }
-    .stChatMessage { border-radius: 12px; padding: 10px; }
+.main { background-color: #f8f9fc; }
+
+/* Chat bubble style */
+[data-testid="stChatMessage"] {
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 8px;
+}
+
+/* Assistant */
+[data-testid="stChatMessage"]:nth-child(odd) {
+    background-color: #f1f3ff;
+}
+
+/* User */
+[data-testid="stChatMessage"]:nth-child(even) {
+    background-color: #e6f7ff;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -58,36 +73,28 @@ stage_map = {
 }
 st.progress(stage_map.get(st.session_state.stage, 0) / 9)
 
-# ---------------- INITIAL GREETING ----------------
+# ---------------- GREETING ----------------
 if len(st.session_state.messages) == 0:
-    greeting = """
+    st.session_state.messages.append(("assistant", """
 Hello! Welcome to TalentScout 🤖
 
-I am your AI Hiring Assistant. I will:
-- Collect your basic details
-- Understand your tech skills
-- Ask relevant technical questions
+I will:
+- Collect your details
+- Understand your skills
+- Ask technical questions
 
-👉 Please type your answers in the chat box below.
+👉 Please type answers in chat below.
 
-Let’s begin! What is your full name?
-"""
-    st.session_state.messages.append(("assistant", greeting))
+What is your full name?
+"""))
     st.session_state.stage = "collect_name"
-
-# ---------------- DISPLAY CHAT ----------------
-for role, msg in st.session_state.messages:
-    with st.chat_message(role):
-        st.write(msg)
 
 # ---------------- USER INPUT ----------------
 user_input = st.chat_input("Type your response here...")
 
 if user_input:
-
     st.session_state.messages.append(("user", user_input))
 
-    # EXIT
     if user_input.lower() in ["exit", "quit", "bye"]:
         name = st.session_state.candidate.get("name", "Candidate")
         final_msg = get_llm_response(get_end_prompt(name))
@@ -95,7 +102,6 @@ if user_input:
         st.session_state.stage = "end"
         st.rerun()
 
-    # ---------------- FLOW ----------------
     elif st.session_state.stage == "collect_name":
         st.session_state.candidate["name"] = user_input
         st.session_state.stage = "collect_email"
@@ -129,35 +135,32 @@ if user_input:
     elif st.session_state.stage == "collect_location":
         st.session_state.candidate["location"] = user_input
         st.session_state.stage = "tech_stack"
-        st.session_state.messages.append(("assistant", "🛠 Please list your tech stack (languages, frameworks, tools)."))
+        st.session_state.messages.append(("assistant", "🛠 Enter your tech stack."))
         st.rerun()
 
     elif st.session_state.stage == "tech_stack":
         st.session_state.candidate["tech_stack"] = user_input
 
         questions = get_llm_response(get_question_prompt(user_input))
-
         st.session_state.questions = questions
-        st.session_state.messages.append(("assistant", "I have generated technical questions. Please answer them below 👇"))
 
+        st.session_state.messages.append(("assistant", "Questions generated. Answer below 👇"))
         st.session_state.stage = "questions"
         st.rerun()
 
-    # ---------------- FALLBACK ----------------
     else:
         chat_history = "\n".join([f"{r}: {m}" for r, m in st.session_state.messages])
 
         response = get_llm_response(
             get_fallback_prompt(user_input, st.session_state.stage, chat_history)
         )
-
         st.session_state.messages.append(("assistant", response))
         st.rerun()
 
-# ---------------- QUESTIONS UI ----------------
+# ---------------- QUESTIONS ----------------
 if st.session_state.stage == "questions":
 
-    st.subheader(" Answer the Questions Below")
+    st.subheader("Answer Questions")
 
     if "answers" not in st.session_state:
         st.session_state.answers = {}
@@ -168,10 +171,8 @@ if st.session_state.stage == "questions":
     for line in questions_text:
         if line.strip().startswith(("1", "2", "3", "4", "5")):
             st.write(f"**Q{q_index}: {line}**")
-
-            answer = st.text_area(f"Your Answer {q_index}", key=f"a{q_index}")
-            st.session_state.answers[f"Q{q_index}"] = answer
-
+            ans = st.text_area(f"Answer {q_index}", key=f"a{q_index}")
+            st.session_state.answers[f"Q{q_index}"] = ans
             q_index += 1
 
     if st.button("✅ Submit Answers"):
@@ -179,7 +180,7 @@ if st.session_state.stage == "questions":
         st.session_state.stage = "review"
         st.rerun()
 
-# ---------------- REVIEW SCREEN ----------------
+# ---------------- REVIEW ----------------
 if st.session_state.stage == "review":
 
     st.subheader("📋 Your Submitted Answers")
@@ -188,10 +189,16 @@ if st.session_state.stage == "review":
         st.write(f"**{q}**")
         st.write(ans if ans else "_No answer provided_")
 
-    name = st.session_state.candidate.get("name", "Candidate")
-
     if st.button("🚀 Finish Interview"):
+        name = st.session_state.candidate.get("name", "Candidate")
         final_msg = get_llm_response(get_end_prompt(name))
         st.session_state.messages.append(("assistant", final_msg))
         st.session_state.stage = "end"
         st.rerun()
+
+# ---------------- CHAT (BOTTOM FIX) ----------------
+st.divider()
+
+for role, msg in st.session_state.messages:
+    with st.chat_message(role):
+        st.write(msg)
