@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 prompts.py
 
@@ -75,7 +76,7 @@ Your task:
 2. For EACH technology, generate EXACTLY 3 questions:
    - 1 basic question
    - 1 intermediate question
-   - 1 scenario-based/practical question
+   - 1 scenario-based or practical question
 
 Rules:
 - Questions must be practical and interview-relevant
@@ -124,29 +125,29 @@ Understand context and respond appropriately WITHOUT breaking flow.
 
 Stage Rules:
 
-1. If stage = "info":
-   - Ask the NEXT missing detail only
-   - Do NOT restart
-   - Do NOT repeat previous questions
+1. If stage is info:
+   - Ask the next missing detail only
+   - Do not restart
+   - Do not repeat previous questions
 
-2. If stage = "tech_stack":
+2. If stage is tech_stack:
    - Ask for structured tech stack
-   - If already given → move to question generation
+   - If already given then move to question generation
 
-3. If stage = "questions":
-   - If questions not generated → generate them
-   - If already generated → WAIT for answers
-   - If user is confused → guide them politely
+3. If stage is questions:
+   - If questions are not generated then generate them
+   - If already generated then wait for answers
+   - If user is confused then guide them politely
 
-4. If stage = "review":
+4. If stage is review:
    - Always respond with:
      "Your responses have been recorded and will be reviewed by our team. You will be contacted soon."
 
 General Behavior:
 - Be short, clear, and helpful
 - Stay in context
-- Do NOT restart conversation
-- Do NOT jump stages
-- Do NOT repeat information
-- Do NOT end conversation abruptly
+- Do not restart conversation
+- Do not jump stages
+- Do not repeat information
+- Do not end conversation abruptly
 """
