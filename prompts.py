@@ -1,7 +1,6 @@
-# ---------------- QUESTION PROMPT ----------------
 def get_question_prompt(tech_stack):
     return f"""
-You are a technical interviewer.
+You are an expert technical interviewer.
 
 Candidate Tech Stack:
 {tech_stack}
@@ -24,7 +23,6 @@ Rules:
 - Only questions
 """
 
-# ---------------- FALLBACK ----------------
 def get_fallback_prompt(user_input, stage, chat_history, candidate_info, answers):
     return f"""
 You are an AI Hiring Assistant.
@@ -47,11 +45,9 @@ Instructions:
 - DO NOT ask for details again
 - If user asks about results → say:
   "Your responses have been recorded and will be reviewed by our team."
-- If user asks general question → answer normally
-- Keep answer short and helpful
+- Otherwise answer normally in short
 """
 
-# ---------------- END ----------------
 def get_end_prompt(name):
     return f"""
 Thank {name} for their time.
