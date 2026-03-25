@@ -55,7 +55,7 @@ user_input = st.chat_input("Type your response here...")
 
 if user_input:
 
-    # store user message
+    # Store user message
     if st.session_state.stage in ["questions", "review"]:
         st.session_state.post_chat.append(("user", user_input))
     else:
@@ -112,16 +112,23 @@ if user_input:
         st.rerun()
 
     elif st.session_state.stage == "tech_stack":
-        st.session_state.candidate["tech_stack"] = user_input
+        st.session_state.candidate["tech_stack"] = user_input[:200]
 
-        questions = get_llm_response(get_question_prompt(user_input))
+        try:
+            questions = get_llm_response(get_question_prompt(user_input[:200]))
+        except Exception:
+            questions = """General:
+1. Describe a project you worked on.
+2. What challenges did you face?
+3. How do you solve problems?
+"""
+
         st.session_state.questions = questions
-
-        st.session_state.messages.append(("assistant", "🧠 I have generated technical questions. Please answer them below 👇"))
+        st.session_state.messages.append(("assistant", "Questions generated. Please answer below 👇"))
         st.session_state.stage = "questions"
         st.rerun()
 
-    # ---------------- FALLBACK (FIXED) ----------------
+    # ---------------- FALLBACK ----------------
     else:
         all_chat = (st.session_state.messages + st.session_state.post_chat)[-10:]
 
@@ -140,8 +147,8 @@ if user_input:
                     answers
                 )
             )
-        except:
-            response = "Sorry, something went wrong. Please try again."
+        except Exception:
+            response = "Your responses have been recorded. Our team will review them and get back to you soon."
 
         if st.session_state.stage in ["questions", "review"]:
             st.session_state.post_chat.append(("assistant", response))
@@ -164,12 +171,12 @@ for role, msg in st.session_state.messages:
 
 # ---------------- QUESTIONS ----------------
 if st.session_state.stage == "questions":
-    st.subheader("🧠 Answer the Questions Below")
+    st.subheader("Answer the Questions Below")
 
     if "answers" not in st.session_state:
         st.session_state.answers = {}
 
-    q_lines = st.session_state.get("questions", "").split("\n")
+    q_lines = st.session_state.questions.split("\n")
 
     qn = 1
     for line in q_lines:
@@ -211,7 +218,11 @@ if st.session_state.stage in ["questions", "review"]:
 if st.session_state.stage == "review":
     if st.button("🚀 Finish Interview"):
         name = st.session_state.candidate.get("name", "Candidate")
-        final_msg = get_llm_response(get_end_prompt(name))
+
+        try:
+            final_msg = get_llm_response(get_end_prompt(name))
+        except:
+            final_msg = f"Thank you {name}! Your responses have been recorded. We will contact you soon."
 
         st.session_state.post_chat.append(("assistant", final_msg))
         st.session_state.stage = "end"
