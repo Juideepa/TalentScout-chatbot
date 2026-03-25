@@ -13,6 +13,9 @@ st.info("🔒 Your data is used only for screening and is not stored permanently
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+if "post_chat" not in st.session_state:
+    st.session_state.post_chat = []
+
 if "stage" not in st.session_state:
     st.session_state.stage = "start"
 
@@ -51,13 +54,23 @@ Let’s begin! What is your full name?
 user_input = st.chat_input("Type your response here...")
 
 if user_input:
-    st.session_state.messages.append(("user", user_input))
+
+    # Decide where to store chat
+    if st.session_state.stage in ["questions", "review"]:
+        st.session_state.post_chat.append(("user", user_input))
+    else:
+        st.session_state.messages.append(("user", user_input))
 
     # EXIT
     if user_input.lower() in ["exit", "quit", "bye"]:
         name = st.session_state.candidate.get("name", "Candidate")
         final_msg = get_llm_response(get_end_prompt(name))
-        st.session_state.messages.append(("assistant", final_msg))
+
+        if st.session_state.stage in ["questions", "review"]:
+            st.session_state.post_chat.append(("assistant", final_msg))
+        else:
+            st.session_state.messages.append(("assistant", final_msg))
+
         st.session_state.stage = "end"
         st.rerun()
 
@@ -116,11 +129,14 @@ if user_input:
             get_fallback_prompt(user_input, st.session_state.stage, chat_history)
         )
 
-        st.session_state.messages.append(("assistant", response))
+        if st.session_state.stage in ["questions", "review"]:
+            st.session_state.post_chat.append(("assistant", response))
+        else:
+            st.session_state.messages.append(("assistant", response))
+
         st.rerun()
 
-
-# ---------------- CHAT DISPLAY ----------------
+# ---------------- MAIN CHAT ----------------
 for role, msg in st.session_state.messages:
     if role == "assistant":
         with st.chat_message("assistant"):
@@ -132,10 +148,9 @@ for role, msg in st.session_state.messages:
         </div>
         """, unsafe_allow_html=True)
 
-
 # ---------------- QUESTIONS ----------------
 if st.session_state.stage == "questions":
-    st.markdown("### 🧠 Answer the Questions Below")
+    st.subheader("Answer the Questions Below")
 
     if "answers" not in st.session_state:
         st.session_state.answers = {}
@@ -145,11 +160,9 @@ if st.session_state.stage == "questions":
     qn = 1
     for line in q_lines:
         if line.strip().startswith(("1", "2", "3", "4", "5")):
-            st.markdown(f"**Q{qn}: {line}**")
-
+            st.write(f"**Q{qn}: {line}**")
             ans = st.text_area(f"Your Answer {qn}", key=f"a{qn}")
             st.session_state.answers[f"Q{qn}"] = ans
-
             qn += 1
 
     if st.button("✅ Submit Answers"):
@@ -157,19 +170,35 @@ if st.session_state.stage == "questions":
         st.session_state.stage = "review"
         st.rerun()
 
-
 # ---------------- REVIEW ----------------
 if st.session_state.stage == "review":
-    st.markdown("### 📋 Your Submitted Answers")
+    st.subheader("📋 Your Submitted Answers")
 
     for q, ans in st.session_state.final_answers.items():
-        st.markdown(f"**{q}**")
+        st.write(f"**{q}**")
         st.write(ans if ans else "_No answer provided_")
 
+# ---------------- POST CHAT ----------------
+if st.session_state.stage in ["questions", "review"]:
+    st.divider()
+
+    for role, msg in st.session_state.post_chat:
+        if role == "assistant":
+            with st.chat_message("assistant"):
+                st.write(msg)
+        else:
+            st.markdown(f"""
+            <div style='background-color:#e6f7ff;padding:10px;border-radius:10px;margin-bottom:8px'>
+            <b>You:</b> {msg}
+            </div>
+            """, unsafe_allow_html=True)
+
+# ---------------- FINAL BUTTON ----------------
+if st.session_state.stage == "review":
     if st.button("🚀 Finish Interview"):
         name = st.session_state.candidate.get("name", "Candidate")
         final_msg = get_llm_response(get_end_prompt(name))
 
-        st.session_state.messages.append(("assistant", final_msg))
+        st.session_state.post_chat.append(("assistant", final_msg))
         st.session_state.stage = "end"
         st.rerun()
